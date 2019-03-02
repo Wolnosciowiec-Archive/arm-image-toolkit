@@ -1,0 +1,26 @@
+{
+    "variables": {},
+    "builders": [
+        {
+          "type": "arm-image",
+          "iso_url" : "https://downloads.raspberrypi.org/raspbian_lite/images/raspbian_lite-2018-11-15/2018-11-13-raspbian-stretch-lite.zip",
+          "iso_checksum_type":"sha256",
+          "iso_checksum":"47ef1b2501d0e5002675a50b6868074e693f78829822eef64f3878487953234d",
+          "last_partition_extra_size" : 1073741824
+        }
+    ],
+    "provisioners": [
+        {
+            "type": "ansible",
+            "playbook_file": "{{playbook_path}}"
+        },
+        {
+            "type": "shell",
+            "inline": ["touch /boot/ssh"]
+        },
+        {
+            "type": "shell",
+            "inline": ["apt update && apt-get install -y docker.io"]
+        }
+    ]
+}
