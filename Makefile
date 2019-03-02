@@ -65,7 +65,7 @@ bring_up_vagrant:
 join_ansible_playbook_into_volume:
 	if [[ $$(dirname ${PLAYBOOK}) != ".." ]]; then\
 		rm -rf ./vendor/packer-builder-arm-image/.ansible-provision || true; \
-		cp -pr $$(dirname ${PLAYBOOK}) ./vendor/packer-builder-arm-image/.ansible-provision; \
+		cp -prL $$(dirname ${PLAYBOOK}) ./vendor/packer-builder-arm-image/.ansible-provision; \
 	fi
 
 apply_rpi_config:
