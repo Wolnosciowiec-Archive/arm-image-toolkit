@@ -1,3 +1,7 @@
 /vendor
 /img/*.img
 .env
+/ansible/*
+!/ansible/.image-builder.sh
+!/ansible/default-playbook.yml
+!/ansible/.gitkeep
