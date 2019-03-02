@@ -11,16 +11,32 @@
     ],
     "provisioners": [
         {
-            "type": "ansible",
-            "playbook_file": "{{playbook_path}}"
-        },
-        {
             "type": "shell",
             "inline": ["touch /boot/ssh"]
         },
         {
             "type": "shell",
-            "inline": ["apt update && apt-get install -y docker.io"]
+            "inline": ["apt update && apt-get install -y apt-transport-https ca-certificates curl gnupg-agent software-properties-common"]
+        },
+        {
+            "type": "shell",
+            "inline": ["curl -sSL https://get.docker.com | sh"]
+        },
+        {
+            "type": "shell",
+            "inline": ["systemctl enable ssh && systemctl enable docker"]
+        },
+        {
+            "type": "shell",
+            "inline": ["echo pi:{{user_passwd}} | /usr/sbin/chpasswd"]
+        },
+        {
+            "type": "shell",
+            "inline": ["ln -fs /lib/systemd/system/getty@.service /etc/systemd/system/getty.target.wants/getty@tty1.service"]
+        },
+        {
+            "type": "ansible",
+            "playbook_file": "{{playbook_path}}"
         }
     ]
 }

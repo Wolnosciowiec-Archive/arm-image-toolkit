@@ -1,9 +1,31 @@
-ARM Image Builder
+ARM Image Toolkit
 =================
 
-Automation of sdcard image building for ARM.
+Automation of sdcard image building and provisioning for ARM.
 At first you need to adjust a configuration file, it's placed in `rpi.json`
 
+Requirements:
+- vagrant
+- VirtualBox
+- bash
+- GNU make
+- qemu
+- wget
+
+## Quick start
+
+#### 1) Running built image
+```
+make build_raspbian_arm
+make run_raspbian_arm
+
+```
+
+#### 2) Flashing built image into sdcard
+```
+make build_raspbian_arm USER_PASSWD=some_passwd
+make flash_sdcard MMC_DEVICE=/dev/mmcblk0
+```
 
 ## Usage with Ansible
 
@@ -32,5 +54,20 @@ You may want to delete Ansible section in `rpi.json` and run just:
 
 ```
 make build_raspbian_arm
+```
+
+## Parameters
+
+If you do not want to always type parameters in shell you can save them in the `.env` file.
+
+Example of .env file:
+```
+MMC_DEVICE=/dev/mmcblk0
+```
+
+With such env file you can type just:
+
+```
+make flash_sdcard
 ```
 

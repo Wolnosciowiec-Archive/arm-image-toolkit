@@ -1,0 +1,15 @@
+
+#
+# Example Ansible playbook
+# You can put in this directory any files, they all will be copied to the VM, so you can keep there roles, includes
+#
+
+- hosts: localhost
+  connection: local
+  sudo: yes
+  tasks:
+      - name: Install packages
+        apt:
+          name:
+              - htop
+          state: installed
