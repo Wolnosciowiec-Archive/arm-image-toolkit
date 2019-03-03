@@ -16,9 +16,8 @@ Requirements:
 
 #### 1) Running built image
 ```
-make build_raspbian_arm
+make build_raspbian_arm CONFIG=rpi.json
 make run_raspbian_arm
-
 ```
 
 #### 2) Flashing built image into sdcard

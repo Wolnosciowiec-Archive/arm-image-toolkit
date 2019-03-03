@@ -1,11 +1,13 @@
 .SILENT:
 
+CONFIG=./rpi.json
 PLAYBOOK=./ansible/default-playbook.yml
 QEMU_IMAGE=./img/arm-image.img
 QEMU_KERNEL=./vendor/kernel.img
 MMC_DEVICE=/dev/mmcblk0
 USER_PASSWD=raspberry
 SUDO=sudo
+ANSIBLE_OPTS=
 
 
 IS_ENV_PRESENT=$(shell test -e .env && echo -n yes)
@@ -19,6 +21,9 @@ endif
 COLOR_RESET   = \033[0m
 COLOR_INFO    = \033[32m
 COLOR_COMMENT = \033[33m
+
+_info:
+	printf " >> ${COLOR_INFO} ${MSG}${COLOR_RESET}\n\n"
 
 ## This help screen
 help:
@@ -36,12 +41,11 @@ help:
 	{ lastLine = $$0 }' $(MAKEFILE_LIST)
 
 	printf " \n\nAvailable variables:"
-	(head -n9 | tail -n 8) < ./Makefile
+	(head -n10 | tail -n 9) < ./Makefile
 
 download_vendor:
 	mkdir -p vendor
-
-	printf " .. Downloading dependencies\n"
+	make _info MSG="Downloading dependencies"
 
 	if [[ ! -d ./vendor/packer-builder-arm-image ]]; then \
 		git clone https://github.com/solo-io/packer-builder-arm-image.git vendor/packer-builder-arm-image; \
@@ -59,46 +63,57 @@ download_vendor:
 #	fi
 
 bring_up_vagrant:
+	make _info MSG="Bringing up machine"
 	cd vendor/packer-builder-arm-image && vagrant halt || true
 	cd vendor/packer-builder-arm-image && vagrant up --no-provision
 
 join_ansible_playbook_into_volume:
+	make _info MSG="Copying Ansible playbook into volume"
 	if [[ $$(dirname ${PLAYBOOK}) != ".." ]]; then\
 		rm -rf ./vendor/packer-builder-arm-image/.ansible-provision || true; \
 		cp -prL $$(dirname ${PLAYBOOK}) ./vendor/packer-builder-arm-image/.ansible-provision; \
 	fi
 
 apply_rpi_config:
-	cp ./rpi.json vendor/packer-builder-arm-image/example.json
-	sed -i "s={{playbook_path}}=/vagrant/.ansible-provision/$$(basename ${PLAYBOOK})=g" vendor/packer-builder-arm-image/example.json
-	sed -i "s={{user_passwd}}=${USER_PASSWD}=g" vendor/packer-builder-arm-image/example.json
+	make _info MSG="Applying ${CONFIG} into the machine"
+
+	cp ${CONFIG} vendor/packer-builder-arm-image/example.json
+	sed -i "s|{{playbook_path}}|/vagrant/.ansible-provision/$$(basename ${PLAYBOOK})|g" vendor/packer-builder-arm-image/example.json
+	sed -i "s|{{user_passwd}}|${USER_PASSWD}|g" vendor/packer-builder-arm-image/example.json
+	sed -i "s|{{ansible_opts}}|${ANSIBLE_OPTS}|g" vendor/packer-builder-arm-image/example.json
 
 apply_custom_provision:
-	cd vendor/packer-builder-arm-image && vagrant ssh -c 'sudo apt-get update && sudo apt-get install -y ansible'
+	make _info MSG="Installing Ansible"
+	cd vendor/packer-builder-arm-image && vagrant ssh -c 'sudo apt-get update && sudo apt-get install -y ansible sshpass'
 
+	make _info MSG="Running a custom provision (.image-builder.sh from playbook directory)"
 	if [[ -f ./vendor/packer-builder-arm-image/.ansible-provision/.image-builder.sh ]]; then \
 		cd vendor/packer-builder-arm-image && vagrant ssh -c 'sudo /vagrant/.ansible-provision/.image-builder.sh && sudo chown vagrant:vagrant -R /etc/ansible/roles' 2>/dev/null || true; \
 	fi
 
 fix_dns:
+	make _info MSG="Setting DNS"
 	cd vendor/packer-builder-arm-image && vagrant ssh -c 'sudo /bin/bash -c "echo \"nameserver 8.8.8.8\" > /etc/resolv.conf"'
 
 build_arm_image:
+	make _info MSG="Starting build..."
 	cd vendor/packer-builder-arm-image && vagrant provision
 
 retry_build_arm_image: join_ansible_playbook_into_volume apply_custom_provision apply_rpi_config
+	make _info MSG="Retrying build..."
 	cd vendor/packer-builder-arm-image && vagrant provision --provision-with build-image
 
-## Build Raspbian image from rpi.json
+## Build Raspbian image from [CONFIG]
 build_raspbian_arm: download_vendor bring_up_vagrant fix_dns join_ansible_playbook_into_volume apply_custom_provision apply_rpi_config build_arm_image move_built_image
 
 ## Retry building of Raspbian image (a little bit faster)
 build_raspbian_arm@retry: fix_dns join_ansible_playbook_into_volume apply_custom_provision apply_rpi_config build_arm_image_quick move_built_image
 
 move_built_image:
+	make _info MSG="Moving built image to ./img directory"
 	mv ./vendor/packer-builder-arm-image/output-arm-image.img ./img/arm-image.img
 
-## Flash image into sdcard (MMC_DEVICE=/dev/mmcblk0)
+## Flash image into sdcard [MMC_DEVICE]
 flash_sdcard:
 	read -r -p "Are you sure? This will erase ${MMC_DEVICE} completly [y/N] " response; \
 	if [[ $${response} == "y" ]]; then \
@@ -116,3 +131,7 @@ run_raspbian_arm:
 		-append "root=/dev/sda2 rootfstype=ext4 rw" -hda ${QEMU_IMAGE} \
 		-net nic -net user,hostfwd=tcp::22222-:22,hostfwd=tcp::22280-:80\
 		-no-reboot
+
+## SSH into vm
+vm_ssh:
+	cd vendor/packer-builder-arm-image && vagrant ssh
